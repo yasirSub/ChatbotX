@@ -988,6 +988,28 @@ class ContactService extends BaseService {
     return uploaded.originPath
   }
 
+  /**
+   * Coexist history sync: date each contact from the oldest message the sync
+   * found for them (the first time they chatted with the page) instead of
+   * from the moment the sync created the row. Backdate-only; see
+   * `contactRepository.backdateCreatedAt`.
+   */
+  async backdateCreatedAt(props: {
+    workspaceId: string
+    rows: { contactId: string; createdAt: Date }[]
+  }): Promise<void> {
+    const { workspaceId, rows } = props
+    if (rows.length === 0) {
+      return
+    }
+    await contactRepository.backdateCreatedAt(
+      rows.map((row) => ({ ...row, workspaceId })),
+    )
+    await invalidateCacheByTags([
+      ...new Set(rows.map((row) => `contacts:${row.contactId}`)),
+    ])
+  }
+
   async unsubscribeEmail(cid: string) {
     await db
       .update(contactModel)
